@@ -232,7 +232,6 @@ local function convertDir(indir, outbasename, nTest, stats)
         test_sample[5][i] = data.e_vals[1]
     end
     matio.save(outbasename .. '_test.mat', {
-        test_ret_num = test_ret_num,
         test_sample = test_sample,
         mean_x = stats.x_mean,
         mean_y = stats.y_mean,
