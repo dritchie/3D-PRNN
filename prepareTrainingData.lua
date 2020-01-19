@@ -78,6 +78,7 @@ local function convertDir(indir, outbasename, stats)
     for entry in lfs.dir(indir) do
         local name, ext = path.nameext(entry)
         if ext == 'json' then
+            print('   Processing ' .. entry .. '...')
             local jsonfile = io.open(path.combine(indir, entry), "r")
             local jsonstring = jsonfile:read("*a")
             jsonfile:close()
@@ -219,9 +220,11 @@ end
 lfs.mkdir(args.output_dir)
 
 -- Convert training data
+print('===== Converting training data =====')
 stats = convertDir(args.train_dir, args.output_dir .. '/train')
 
 -- Convert validation data, normalizing with same statistics as the training data
+print('===== Converting validation data =====')
 convertDir(args.val_dir, args.output_dir .. '/val', stats)
 
 -- Save statistics
