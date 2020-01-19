@@ -105,6 +105,15 @@ local function convertDir(indir, outbasename, stats)
                 cuboid.eulerAngs = rotmat2euler(basismat)
             end
 
+            -- Convert centers into translations of the cube's "origin corner"
+            for _,cuboid in ipairs(cuboids) do
+                local t = torch.Tensor(cuboid.center)
+                t = t - 0.5 * cuboid.xd * torch.Tensor(cuboid.xdir)
+                t = t - 0.5 * cuboid.yd * torch.Tensor(cuboid.ydir)
+                t = t - 0.5 * cuboid.zd * torch.Tensor(cuboid.zdir)
+                cuboid.origin = t
+            end
+
             -- Convert to expected training data format
             local data = {
                 str = cs(#cuboids),           -- one "c" for each cuboid
@@ -121,7 +130,7 @@ local function convertDir(indir, outbasename, stats)
                 for j=1,3 do
                     local index = 3*(i-1) + (j-1) + 1
                     -- Translations
-                    data.y_vals[index] = cuboid.center[j]
+                    data.y_vals[index] = cuboid.origin[j]
                     -- Rotations
                     if cuboid.eulerAngs[j] ~= 0 then
                         data.rs_vals[index] = 1
@@ -142,6 +151,27 @@ local function convertDir(indir, outbasename, stats)
             addall(all_r, data.r_vals)
         end  
     end
+
+    -- Save a .mat file with *everything*, so we can run it through the Matlab visualization code
+    --    and verify that it looks correct
+    local maxNumCuboids = 0
+    for _,data in ipairs(all_data) do
+        maxNumCuboids = math.max(maxNumCuboids, #data.str)
+    end
+    -- Make the matrix have a few more columns than needed, b/c the Matlab visualization script looks
+    --    for the presence of zeros at the end of a row to know how many primitives there are (dumb...)
+    local all_data_mat = torch.zeros(4*#all_data, 3*(maxNumCuboids+1))
+    for i,data in ipairs(all_data) do
+        local rindex = 4*(i-1) + 1
+        local n = #data.x_vals
+        for j=1,n do
+            all_data_mat[rindex][j] = data.x_vals[j]
+            all_data_mat[rindex+1][j] = data.y_vals[j]
+            all_data_mat[rindex+2][j] = data.r_vals[j]
+            all_data_mat[rindex+3][j] = data.rs_vals[j]
+        end
+    end
+    matio.save(outbasename .. '_all.mat', all_data_mat)
 
     -- Normalize x_vals, y_vals, and r_vals to be zero mean and unit variance
     if stats == nil then
@@ -176,38 +206,30 @@ local function convertDir(indir, outbasename, stats)
     file:writeObject(all_data)
     file:close()
 
-    -- Save a .mat file with the initial values needed to prime the network
+    -- Save a .mat file with everything needed to test the network:
+    -- * Iniital values for primiing the RNN
+    -- * Statistics used to normalize the data
+    -- * 'test_ret_num', which is basically useless
     local test_ret_num = torch.zeros(#all_data, 1)  -- Values aren't important; only the size is used
     local test_sample = torch.zeros(5, #all_data)
     for i,data in ipairs(all_data) do
-        -- Order is x, y, e, r, rs
+        -- Order is x, y, r, rs, e (and e isn't even actually used)
         test_sample[1][i] = data.x_vals[1]
         test_sample[2][i] = data.y_vals[1]
-        test_sample[3][i] = data.e_vals[1]
-        test_sample[4][i] = data.r_vals[1]
-        test_sample[5][i] = data.rs_vals[1]
+        test_sample[3][i] = data.r_vals[1]
+        test_sample[4][i] = data.rs_vals[1]
+        test_sample[5][i] = data.e_vals[1]
     end
-    matio.save(outbasename .. '_prime.mat', {test_ret_num = test_ret_num, test_sample = test_sample})
-
-    -- Save a .mat file with *everything*, so we can run it through the Matlab visualization code
-    --    and verify that it looks correct
-    local maxNumCuboids = 0
-    for _,data in ipairs(all_data) do
-        maxNumCuboids = math.max(maxNumCuboids, #data.str)
-    end
-    local all_data_mat = torch.zeros(#all_data, 15*maxNumCuboids)
-    for i,data in ipairs(all_data) do
-        local n = #data.x_vals
-        for j=1,n do
-            local index = 5*(j-1) + 1
-            all_data_mat[i][index] = data.x_vals[j]
-            all_data_mat[i][index+1] = data.y_vals[j]
-            all_data_mat[i][index+2] = data.e_vals[j]
-            all_data_mat[i][index+3] = data.r_vals[j]
-            all_data_mat[i][index+4] = data.rs_vals[j]
-        end
-    end
-    matio.save(outbasename .. '_all.mat', all_data_mat)
+    matio.save(outbasename .. '_test.mat', {
+        test_ret_num = test_ret_num,
+        test_sample = test_sample,
+        mean_x = stats.x_mean,
+        mean_y = stats.y_mean,
+        mean_r = stats.r_mean,
+        std_x = stats.x_std,
+        std_y = stats.y_std,
+        std_r = stats.r_std
+    })
 
     -- Return the means and standard deviations (so they can be saved and later used to convert
     --    data back into legible form)
@@ -226,9 +248,4 @@ stats = convertDir(args.train_dir, args.output_dir .. '/train')
 -- Convert validation data, normalizing with same statistics as the training data
 print('===== Converting validation data =====')
 convertDir(args.val_dir, args.output_dir .. '/val', stats)
-
--- Save statistics
-local file = io.open(args.output_dir .. '/stats.json', 'w')
-file:write(json.encode(stats))
-file:close()
 
