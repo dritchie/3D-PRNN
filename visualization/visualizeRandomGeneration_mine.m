@@ -1,7 +1,7 @@
 % visualize random generation result
 
-% res
 res = load('../mydata/train_all.mat');
+% res = load('../result/test_res_mn_pure.mat');
 res = res.x;
 
 for start_num = 1:size(res,1)
@@ -51,7 +51,32 @@ for res_row = 1:3:stop_idx-3
             %patch('Faces',faces,'Vertices',vertices,'FaceColor',color{tol_cnt},'FaceAlpha',0.8);
             light('Position',[-1 -1 0],'Style','local');
             patch('Faces',faces,'Vertices',vertices,'FaceColor',color{tol_cnt},'EdgeColor','none', 'FaceLighting', 'gouraud', 'AmbientStrength',0.6, 'DiffuseStrength', 0.8, 'FaceAlpha',0.8);
-   
+            
+            if prim_r(4)+prim_r(1) < 0
+                prim_r(4) = -prim_r(4) - prim_r(1);
+                prim_pt_x = [0 prim_r(1) prim_r(1) 0 0 prim_r(1) prim_r(1) 0];
+                prim_pt_y = [0 0 prim_r(2) prim_r(2) 0 0 prim_r(2) prim_r(2)];
+                prim_pt_z = [0 0 0 0 prim_r(3) prim_r(3) prim_r(3) prim_r(3)];
+                prim_pt = [prim_pt_x' prim_pt_y' prim_pt_z'];
+                prim_pt = bsxfun(@plus, prim_pt, prim_r(:,4:6));
+                prim_pt_mean = mean(prim_pt);
+    
+                [~, Rv_t] = max(abs(Rv));
+                if Rv_t ~=1
+                    theta = -theta;
+                end
+                %Rv = [0 0 0]; theta = 0;
+                vx = getVX(Rv);% rotation
+                Rrot = cos(theta)*eye(3) + sin(theta)*vx + (1-cos(theta))*Rv'*Rv;
+                prim_pt = bsxfun(@minus, prim_pt, prim_pt_mean);
+                prim_pt = prim_pt*Rrot;
+                prim_pt = bsxfun(@plus, prim_pt, prim_pt_mean);
+                %prim_pt = bsxfun(@min,prim_pt,30);
+                vertices = prim_pt;
+                %patch('Faces',faces,'Vertices',vertices,'FaceColor',color{tol_cnt},'FaceAlpha',0.8);
+                patch('Faces',faces,'Vertices',vertices,'FaceColor',color{tol_cnt},'EdgeColor','none', 'FaceLighting', 'gouraud', 'AmbientStrength',0.6, 'DiffuseStrength', 0.8, 'FaceAlpha',0.8);
+            end
+            
             tol_cnt = tol_cnt + 1;
         view(3);
         axis equal;

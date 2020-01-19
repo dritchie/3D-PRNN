@@ -10,6 +10,7 @@ local parser = argparse("prepareTrainingData", "Convert directories of .JSON sha
 parser:argument("train_dir", "Directory containing training data")
 parser:argument("val_dir", "Directory containing validation data")
 parser:option("-ot --output_dir", "Directory for output files", "mydata")
+parser:option("-n --n_test", "Number of test samples intended to be drawn", 100)
 local args = parser:parse()
 
 ---------------------------------------------------------------------------------------------------
@@ -68,7 +69,7 @@ local function rotmat2euler(R)
     return {psi, theta, phi}
 end
 
-local function convertDir(indir, outbasename, stats)
+local function convertDir(indir, outbasename, nTest, stats)
 
     local all_data = {}
     local all_x = {}
@@ -113,6 +114,16 @@ local function convertDir(indir, outbasename, stats)
                 t = t - 0.5 * cuboid.zd * torch.Tensor(cuboid.zdir)
                 cuboid.origin = t
             end
+
+            -- Discard any cuboids that are completely on the positive side of the x=0 plane
+            -- (We assume that shapes are bilaterally symmetric and only model one half)
+            local keptcuboids = {}
+            for _,cuboid in ipairs(cuboids) do
+                if cuboid.origin[1] <= 0 then
+                    table.insert(keptcuboids, cuboid)
+                end
+            end
+            cuboids = keptcuboids
 
             -- Convert to expected training data format
             local data = {
@@ -209,10 +220,10 @@ local function convertDir(indir, outbasename, stats)
     -- Save a .mat file with everything needed to test the network:
     -- * Iniital values for primiing the RNN
     -- * Statistics used to normalize the data
-    -- * 'test_ret_num', which is basically useless
-    local test_ret_num = torch.zeros(#all_data, 1)  -- Values aren't important; only the size is used
-    local test_sample = torch.zeros(5, #all_data)
-    for i,data in ipairs(all_data) do
+    local test_sample = torch.zeros(5, nTest)
+    for i=1,nTest do
+        local randidx = math.ceil(math.random() * #all_data)
+        local data = all_data[randidx]
         -- Order is x, y, r, rs, e (and e isn't even actually used)
         test_sample[1][i] = data.x_vals[1]
         test_sample[2][i] = data.y_vals[1]
@@ -243,9 +254,9 @@ lfs.mkdir(args.output_dir)
 
 -- Convert training data
 print('===== Converting training data =====')
-stats = convertDir(args.train_dir, args.output_dir .. '/train')
+stats = convertDir(args.train_dir, args.output_dir .. '/train', args.n_test)
 
 -- Convert validation data, normalizing with same statistics as the training data
 print('===== Converting validation data =====')
-convertDir(args.val_dir, args.output_dir .. '/val', stats)
+convertDir(args.val_dir, args.output_dir .. '/val', args.n_test, stats)
 
