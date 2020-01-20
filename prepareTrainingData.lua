@@ -100,18 +100,21 @@ local function convertDir(indir, outbasename, nTest, stats)
             --    Euler angles from that matrix
             for _,cuboid in ipairs(cuboids) do
                 local basismat = torch.zeros(3, 3)
-                basismat[{ {}, 1 }] = torch.Tensor(cuboid.xdir)
-                basismat[{ {}, 2 }] = torch.Tensor(cuboid.ydir)
-                basismat[{ {}, 3 }] = torch.Tensor(cuboid.zdir)
+                cuboid.xdir = torch.Tensor(cuboid.xdir)
+                cuboid.ydir = torch.Tensor(cuboid.ydir)
+                cuboid.zdir = torch.Tensor(cuboid.zdir)
+                basismat[{ {}, 2 }] = cuboid.ydir
+                basismat[{ {}, 1 }] = cuboid.xdir
+                basismat[{ {}, 3 }] = cuboid.zdir
                 cuboid.eulerAngs = rotmat2euler(basismat)
             end
 
             -- Convert centers into translations of the cube's "origin corner"
             for _,cuboid in ipairs(cuboids) do
                 local t = torch.Tensor(cuboid.center)
-                t = t - 0.5 * cuboid.xd * torch.Tensor(cuboid.xdir)
-                t = t - 0.5 * cuboid.yd * torch.Tensor(cuboid.ydir)
-                t = t - 0.5 * cuboid.zd * torch.Tensor(cuboid.zdir)
+                t = t - 0.5 * cuboid.xd * cuboid.xdir
+                t = t - 0.5 * cuboid.yd * cuboid.ydir
+                t = t - 0.5 * cuboid.zd * cuboid.zdir
                 cuboid.origin = t
             end
 
@@ -119,7 +122,21 @@ local function convertDir(indir, outbasename, nTest, stats)
             -- (We assume that shapes are bilaterally symmetric and only model one half)
             local keptcuboids = {}
             for _,cuboid in ipairs(cuboids) do
-                if cuboid.origin[1] <= 0 then
+                local corners = {
+                    cuboid.origin,
+                    cuboid.origin + cuboid.xd*cuboid.xdir,
+                    cuboid.origin + cuboid.yd*cuboid.ydir,
+                    cuboid.origin + cuboid.zd*cuboid.zdir,
+                    cuboid.origin + cuboid.xd*cuboid.xdir + cuboid.yd*cuboid.ydir,
+                    cuboid.origin + cuboid.xd*cuboid.xdir + cuboid.zd*cuboid.zdir,
+                    cuboid.origin + cuboid.yd*cuboid.ydir + cuboid.zd*cuboid.zdir,
+                    cuboid.origin + cuboid.xd*cuboid.xdir + cuboid.yd*cuboid.ydir + cuboid.zd*cuboid.zdir
+                }
+                local someneg = false
+                for _,c in ipairs(corners) do
+                    someneg = someneg or c[1] <= 0
+                end
+                if someneg then
                     table.insert(keptcuboids, cuboid)
                 end
             end
