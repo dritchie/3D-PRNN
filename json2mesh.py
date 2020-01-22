@@ -18,6 +18,9 @@ for entry in os.listdir(args.input_dir):
     if ext == '.json':
         with open(f'{args.input_dir}/{entry}', 'r') as f:
             cuboids = json.loads(f.read())
+        # Sometimes we generate an empty list of cuboids; skip these
+        if not cuboids:
+            continue
         # Turn each cuboid into a mesh
         meshes = []
         for _,cuboid in cuboids.items():

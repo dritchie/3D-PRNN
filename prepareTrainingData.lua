@@ -10,7 +10,7 @@ local parser = argparse("prepareTrainingData", "Convert directories of .JSON sha
 parser:argument("train_dir", "Directory containing training data")
 parser:argument("val_dir", "Directory containing validation data")
 parser:option("-ot --output_dir", "Directory for output files", "mydata")
-parser:option("-n --n_test", "Number of test samples intended to be drawn", 100)
+parser:option("-n --n_test", "Number of test samples intended to be drawn", 1000)
 local args = parser:parse()
 
 ---------------------------------------------------------------------------------------------------

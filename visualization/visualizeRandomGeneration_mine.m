@@ -1,7 +1,7 @@
 % visualize random generation result
 
-res = load('../mydata/train_all.mat');
-% res = load('../result/test_res_mn_pure.mat');
+% res = load('../mydata/train_all.mat');
+res = load('../result/test_res_mn_pure.mat');
 res = res.x;
 
 for start_num = 1:size(res,1)

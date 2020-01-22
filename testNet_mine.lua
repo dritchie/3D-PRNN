@@ -19,9 +19,10 @@ model = torch.load('./model/model_full.t7')
 test_samp = matio.load('./mydata/train_test.mat')
 
 -- nSamples = 100
-nSamples = 10
--- maxNumCuboids = 20
-maxNumCuboids = 6
+nSamples = 900
+-- nSamples = 20
+maxNumCuboids = 14
+-- maxNumCuboids = 6
 rs_res = torch.zeros(4*nSamples, 15*maxNumCuboids)
 
 for samp_num = 1, nSamples do
