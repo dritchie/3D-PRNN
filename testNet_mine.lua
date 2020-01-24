@@ -16,7 +16,7 @@ require 'cunn'
 model = torch.load('./model/model_full.t7')
 
 -- nearest neighbor retrieved feature to initialize the first axes of the first primitive
-test_samp = matio.load('./mydata/train_test.mat')
+test_samp = matio.load('./mydata/storage/train_test.mat')
 
 -- nSamples = 100
 nSamples = 900
